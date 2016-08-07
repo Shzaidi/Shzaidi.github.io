@@ -1,0 +1,83 @@
+---
+title: "NZaidi_LiveSessionAssigment_W2"
+author: "Najeeb Zaidi"
+date: "August 7, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Assignment Requirements:
+
+Use the stackloss data to create the following:
+
+     * Use summary() function on data set and interpret the results.
+     * Use the ???str??? function on the data set and interpret the results.
+     * Create a scatter plot of stack.loss vs. Air.Flow and describe the relationship.
+     * Copy and paste the final (error-free) Rmarkdown code into the window provided at 2DS section 2.8.3.
+
+### 1. Upload / Read Data:
+```{r}
+# reading R package builtin data set
+library(datasets)
+data(stackloss)
+
+summary(stackloss)
+```
+
+### 2A. View Structure of StackLoss dataset:
+```{r}
+str(stackloss)
+
+typeof(stackloss$Air.Flow)
+typeof(stackloss$Water.Temp)
+typeof(stackloss$Acid.Conc.)
+typeof(stackloss$stack.loss)
+
+head(stackloss)
+
+```
+
+### 2B. Interpreting the above results:
+
+**"stackloss"** is a data frame with 21 observations and 4 variables. The type of each vector within this data frame is also listed in output above. 
+
+The Header information lists the first 6 records stored in this dataframe.
+Summary function presented earlier describes the statistical characteristics of data stored in this dataframe.
+
+
+### 3A. Scatterplot of stack.loss vs. Air.Flow
+
+```{r}
+library(ggplot2)
+scatter.smooth(stackloss$Air.Flow, stackloss$stack.loss)
+
+cor(stackloss$Air.Flow, stackloss$stack.loss)
+
+```
+
+### 3B. Interpretation of Scatterplot
+
+The dataframe suggests that stackloss is a dependent variable of Air Flow, Water Temperature and Acid Concentration levels. This implies that a regression relationship may exist.
+
+**The scatter plot where Air.Flow is taken as 'x' or independent variable while stack.loss is the 'y' or dependent variable describes a positive linear relationship between these two.**
+
+Additionally, the cor() function computes the correlation between them.
+
+We can further run a linear regression with lm() function and find correation as ANOVA to evaluate the extent and nature of Air Flow impacting the stack.loss.
+
+From [background reading](http://www.calvin.edu/~stob/courses/m241/F11/outlines/Nov20-multilinear.pdf), we get to know that stackloss is dependent variable of a multiple regression where the measurements were collected from an ammonia oxidation plant. Source link provided to view full details.
+
+
+
+
+
+
+
+
+
+
+Najeeb Zaidi - MSDS 6306
+.

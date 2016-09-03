@@ -1,0 +1,346 @@
+---
+title: "S&P 500 vs Nikkie 225 Volatility Spread Estimates"
+author: "Najeeb Zaidi"
+date: "September 3, 2016"
+output: html_document
+---
+
+# This page covers Asynch Unit 9.5.3 and Live Session 9 Assignments Q1 & Q2
+
+# Introduction 
+
+We display application of the "tseries" package of R, to download ticker prices of three market Indicies: S&P500, FTSE-100, Nikkei-225 to find a series that is less or more volatile than the S&P500.
+
+In this process we:
+
+     * A. Download the data.
+     
+     * B. Calculate log returns.
+     
+     * C. Calculate volatility measure.
+     
+     * D. Calculate volatility over entire length of series for various three different decay factors.
+     
+     * E. Plot the results, overlaying the volatility curves on the data, just as was done in the S&P example.
+    
+
+Also noting that, I did not have the "class assigned stock", nor the less vs more volatile series as mentioned in BLT 9.5.3., so I decided to get FTSE and Nikkie idecies to compare to submit my assignment. 
+
+Deliverable:
+
+Upload the Markdown file containing your code, analysis, and discussion to GitHub. 
+Post a link to the Markdown file in the space below.
+
+The markdown document should have code for entering the data, calculating log returns, 
+calculating volatility measure, and calculating volatility for the entire series using 
+three different decay factors.
+
+Also needs to have code for a plot (and the plot itself) with the data and volatility overlaid.
+
+The discussion board will talk about the differences in the volatility plots for different stocks.
+
+I have kept "echo = TRUE" throughout this HTML to show the R code and output for the purposes of good record.
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## A. Downloading the Data
+
+The tseries package uses the function get.hist.quote() to download data from Yahoo or Oanda sites only. Although the package documents states that it can do this from any website, the function is setup only for the two named. Get ready ! as yahoo servers often return an Error 404. ( FTSE data never got through ).
+
+Using Quantmod API would have been a better option to acomplish the same but that would not fulfill our assigned objective in current context.
+
+```{r, echo = TRUE}
+library(tseries)
+
+SNPdata <- get.hist.quote('^gspc', quote = "Close")
+#FTdata <- get.hist.quote('^ftse', quote = "Close")
+NKdata <- get.hist.quote('^n225', quote = "Close")
+
+# Check data came in and how does it look like 
+dim(SNPdata)
+dim(NKdata)
+
+head(SNPdata, 2)
+head(NKdata, 2)
+
+```
+
+## B. Computing the Log Returns and Volatility 
+
+Notice that S&P data is presented in 'hundreds', while the Nikkie-225 ticker is in 'thousands'. So we would need to scale them before we could plot them together or compare the raw time series.
+
+Computation of (log) returns just picks up a data point and compares the change from last period using the lag() function.
+
+Since we also need to compute the volatility and lag windows , we would need to convert these time series into a scaled form anyway log returns allow this scalability. 
+So, putting the two in same strike, we convert downloaded time series as follows. We will also plot each time series to ensure a visual check on our computations process:
+
+```{r, echo=TRUE}
+
+#Return
+SNPret <- log(lag(SNPdata)) - log(SNPdata)
+#Volatility
+SNPvol <- sd(SNPret) * sqrt(250) * 100
+# 250 refers to number of trading days in an year. 
+SNPvol
+
+NKret <- log(lag(NKdata)) - log(NKdata)
+NKvol <- sd(NKret) * sqrt(250) * 100
+NKvol
+
+```
+
+Plot of S&P 500 Returns & Volatility across the whole time series:
+```{r, echo=FALSE}
+plot(SNPret, type = "l", col = "darkgray")
+
+```
+
+Plot of Nikkie-225 Returns & Volatility across given time series:
+```{r, echo=FALSE}
+plot(NKret, type = "l", col = "cyan")
+
+```
+
+We did not plot Volatility !! ?
+Good question ... Cheers, becuase SNPvol and NKvol are only point in time computations.
+So whats the solution ?
+
+## Creating a Continuous Look-back Window
+
+The solution is to convert volatility to a look back window.
+Dr. Mcgee rightly points out in her lectures that 'tseries' does not have a function to do this so we will have to create our own.
+
+However, highlight that if we use TTR or Quantmod packages the same can be achieved. TTR has functions called volatility(), runSD() and xts() that allow to run volatility time series and spreads. 
+
+For now, we focus on our own function :) 
+
+```{r, echo = TRUE}
+# Get Volatility time series 
+# Ref: taken as is from Prof. Monie McGee Lectures 9.5.2
+
+Vol <- function(d, logrets) {
+  var = 0
+  lam = 0
+  varlist <-  c() 
+  for (r in logrets) {
+    lam = lam * (1 - 1/d) + 1
+    var = (1 - 1/lam) * var + (1/lam) * r ^ 2
+    varlist <- c(varlist, var)
+  }
+  sqrt(varlist)
+}
+
+```
+
+We can now use this function to plot our return volatilities for both indicies:
+
+```{r, ehco = TRUE}
+# 10 indicates a 10 day look-back window
+# we can use 30 and 100 instead or as add ons to compare smoother volatility curves.
+
+SPvolest <- Vol(10, SNPret)
+
+plot(SPvolest, type = "l", col = "darkgray")
+
+```
+
+Lets plot Nikkie Index separately first before we plot the spread comaprisons: 
+
+```{r, ehco = TRUE}
+
+NKvolest <- Vol(10, NKret)
+
+plot(NKvolest, type = "l", col = "cyan")
+
+```
+
+Well the two graphs look very similar. How do we know which index is more volatile?
+
+Lets take the spread:
+
+```{r, echo = TRUE}
+# we ignore for the moment that the 2 return series do not have equal number of observations. We would use the window() function to cut an equal set of observations.
+
+spread <- c(SPvolest - NKvolest)
+
+plot(spread, type = "l", col = "red")
+
+```
+
+So the spread is as volatile itself ! Also, we have negative and positive spreads. Knowing our spread computations, positive spread values show when S&P return volatility was higher than Nikkie and negative when vice versa. 
+
+Thats why the S&P and Nikkie Volatilites are also traded in the market. 
+Check out VIX (^vix on yahoo)
+
+As part of this assignment last component, lets overlay this spread with Nikkie volatility estimate of 10 day look back window created earlier :
+
+```{r, echo = TRUE}
+
+plot(NKvolest, type = "l", col = "cyan")
+lines(spread, type = "l", col = "red")
+
+```
+
+Right !!! the x-axis scale will not match. Do we convert them to a common scale ?
+But hold on , we would do that with a log() function. But the spread has negative observations. Well here onward, its better to use the TTS package and apply runSD() function or better use the FPP package.
+
+Using FPP we can overlay the two plots without hastle of much manual manipulation.
+
+Also the xts() in quantmod is much faster to compute volatilities as well as data loading. Google carries far better data quality than both Yahoo or Oanda web sources.
+
+This completes my response to BLT 9.5.3 as well as Q2 of LS-9 Assignments.
+
+# Section 2: Question 1 of Live Session 9 Assignment
+
+Using the FPP package and sample data on oil in its library, perform the following :
+
+     1. Plot the time series. Can you identify seasonal fluctuations and/or a trend?
+     2. Use a classical decomposition to calculate the trend-cycle and seasonal indices;
+     3. Do the results support the graphical interpretation from part (a)?
+     4. Compute and plot the seasonally adjusted data;
+     5. Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+     6. Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+     7. Use STL to decompose the series.
+
+I'll keep echo = TRUE to show the coding steps for this assignment, but we can turn them FALSE when presenting final work:
+
+```{r, echo = TRUE}
+
+library(fpp)
+library(TTR)
+
+data(oil)
+
+summary(oil)
+head(oil, 4)
+
+# Question 1 : plot of the whole time series:
+
+plot(oil, type = "l", ylab = "Oil (millions of tonnes)", xlab = "Year")
+
+```
+
+The data set is from 1969 to 2010.
+Do we see a seasonality and / or Trend? The visual answer would be yes for trend but we cannot identify seasonality from this particular view (or a partial yes becuase we can see two peaks and a trough, indicating a 1.5 cycle, but that may not be enough).
+
+SO what do we do? We would use a classical decomposition to calculate trend cycles and seasonal indicies.
+
+For this purpose we take the following steps :
+
+
+```{r, echo = TRUE}
+
+# select a shorter data window from large data set :
+
+oildata <- window(oil, start = 1998, end = 2009)
+
+plot(oildata, ylab = "Oil (millions of tonnes)", xlab = "Year")
+
+```
+
+### Does this data have a trend ?
+
+The ses() function is used for exponantial smoothing which is a lagging indicator and help us to view closer at possible trend and seasonality in this time series. There a drawbacks though of this approach and is not a final word.
+
+Apply this to our data window of 1998 to 2009 gives the following plots:
+
+```{r, echo = TRUE}
+
+
+fit1 <- ses(oildata, alpha = 0.2, initial = "simple", h = 3)
+
+fit2 <- ses(oildata, alpha = 0.6, initial = "simple", h = 3)
+
+fit3 <- ses(oildata, h = 3)
+
+plot(fit1, plot.conf = FALSE, ylab = "Oil (millions of tonnes)",
+  xlab = "Year", main = "", fcol = "white", type = "l")
+
+lines(fitted(fit1), col = "blue", type = "o")
+
+lines(fitted(fit2), col = "red", type = "o")
+
+lines(fitted(fit3), col = "green", type = "o")
+
+lines(fit1$mean, col = "blue", type = "o")
+
+lines(fit2$mean, col = "red", type = "o")
+
+lines(fit3$mean, col = "green", type = "o")
+
+```
+
+The above plot does allow us to view more prominently a seasonlity behaviour during 1998 - 2002 (4 years - 2 cycles), while a clear upward trend during 2003 - 2009.
+
+The blue line has alpha of 0.2 i.e least reactive, red line with alpha of 0.6 and green has alpha of 1, i.e. most sensitive to the black which is the actual data plot for selected window.
+
+We can review Trend characteristic of this time series using the Moving Averages as follows:
+
+```{r, echo = TRUE}
+
+oildata.ma5 <- SMA(oildata, n = 3)
+plot.ts(oildata.ma5)
+
+oildata.ma10 <- SMA(oildata, n = 6)
+lines(oildata.ma10, col = "red")
+
+```
+
+The plot shows a Simple Moving Average (SMA) for 3 periods (black) vs the SMA for 8 periods (red).
+
+These confirms our visual observation for a clear upward trend during 2002 - 2009.
+
+### Decomposing the Seasonal character:
+
+We use the STL() function to decompose.
+
+```{r, echo = TRUE}
+#seasontest <- stl(oildata, s.window = 2)
+
+plot(oildata, col = "darkgray", ylab = "Oil Price", xlab = "Time")
+
+#lines(seasontest$time.series[,2], col = "red", ylab = "Trend")
+#plot(seasontest)
+
+```
+
+If we apply the STL function it returns an error indicating the series is not seasonal:
+
+     Error in stl(oildata, s.window = 5) : 
+          series is not periodic or has less than two periods
+          
+
+### Do the results support the graphical interpretation from part (a)?
+
+The above leads us to understand that there is no seasonality in oil data selected.
+
+### Computing and Plot the Seasonality Adjustment 
+
+```{r, echo = TRUE}
+
+#library(seasonal)
+# Check path for the installation of package "seasonal"
+#checkX13(fail = FALSE, fullcheck = TRUE, htmlcheck = TRUE)
+
+# apply ARIMA Models for seasonality adjustment 
+
+# oildata.seasonAdj <- seas(oildata)
+#fivebestmd(oildata)
+#plot(oildata.seasonAdj)
+
+# Reference : https://cran.r-project.org/web/packages/seasonal/seasonal.pdf
+
+# Generates :
+
+#Error: X-13 run failed
+
+#Errors:
+#- Need monthly or quarterly data to perform aictest for trading day.
+#- Need monthly or quarterly data to perform aictest for Easter.
+
+```
